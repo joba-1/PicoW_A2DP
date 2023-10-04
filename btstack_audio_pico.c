@@ -51,6 +51,7 @@
 #include "btstack_run_loop.h"
 
 #include <stddef.h>
+#include <stdio.h>
 #include <hardware/dma.h>
 
 #include "pico/audio_i2s.h"
@@ -91,7 +92,7 @@ static audio_buffer_pool_t *init_audio(uint32_t sample_frequency, uint8_t channe
 
     audio_i2s_config_t config;
     config.data_pin       = PICO_AUDIO_I2S_DATA_PIN;
-    config.clock_pin_base = PICO_AUDIO_I2S_CLOCK_PIN_BASE;  // BCK, LRCK
+    config.clock_pin_base = PICO_AUDIO_I2S_CLOCK_PIN_BASE;  // BCK, LRCK = BCK+1
     config.dma_channel    = (int8_t) dma_claim_unused_channel(true);
     config.pio_sm         = 0;
 
@@ -159,7 +160,7 @@ static int btstack_audio_pico_sink_init(
 }
 
 static void btstack_audio_pico_sink_set_volume(uint8_t volume){
-    UNUSED(volume);
+    printf("btstack_audio_pico_sink_set_volume: %d\n", volume);
 }
 
 static void btstack_audio_pico_sink_start_stream(void){

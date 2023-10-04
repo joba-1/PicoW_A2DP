@@ -70,8 +70,6 @@
 #include "btstack.h"
 #include "btstack_resample.h"
 
-//#define AVRCP_BROWSING_ENABLED
-
 #ifdef HAVE_BTSTACK_STDIN
 #include "btstack_stdin.h"
 #endif
@@ -81,11 +79,6 @@
 #endif
 
 #include "btstack_ring_buffer.h"
-
-#ifdef HAVE_POSIX_FILE_IO
-#include "wav_util.h"
-#define STORE_TO_WAV_FILE
-#endif
 
 #define NUM_CHANNELS 2
 #define BYTES_PER_FRAME     (2*NUM_CHANNELS)
@@ -113,12 +106,6 @@ static uint8_t media_sbc_codec_capabilities[] = {
     0xFF,//(AVDTP_SBC_BLOCK_LENGTH_16 << 4) | (AVDTP_SBC_SUBBANDS_8 << 2) | AVDTP_SBC_ALLOCATION_METHOD_LOUDNESS,
     2, 53
 };
-
-// WAV File
-#ifdef STORE_TO_WAV_FILE
-static uint32_t audio_frame_count = 0;
-static char * wav_filename = "a2dp_sink_demo.wav";
-#endif
 
 // SBC Decoder for WAV file or live playback
 static btstack_sbc_decoder_state_t state;
@@ -151,30 +138,6 @@ static int       request_frames;
 // sink state
 static int volume_percentage = 0;
 static avrcp_battery_status_t battery_status = AVRCP_BATTERY_STATUS_WARNING;
-
-#ifdef ENABLE_AVRCP_COVER_ART
-static char a2dp_sink_demo_image_handle[8];
-static avrcp_cover_art_client_t a2dp_sink_demo_cover_art_client;
-static bool a2dp_sink_demo_cover_art_client_connected;
-static uint16_t a2dp_sink_demo_cover_art_cid;
-static uint8_t a2dp_sink_demo_ertm_buffer[2000];
-static l2cap_ertm_config_t a2dp_sink_demo_ertm_config = {
-        1,  // ertm mandatory
-        2,  // max transmit, some tests require > 1
-        2000,
-        12000,
-        512,    // l2cap ertm mtu
-        2,
-        2,
-        1,      // 16-bit FCS
-};
-static bool a2dp_sink_cover_art_download_active;
-static uint32_t a2dp_sink_cover_art_file_size;
-#ifdef HAVE_POSIX_FILE_IO
-static const char * a2dp_sink_demo_thumbnail_path = "cover.jpg";
-static FILE * a2dp_sink_cover_art_file;
-#endif
-#endif
 
 typedef struct {
     uint8_t  reconfigure;
@@ -234,10 +197,8 @@ static a2dp_sink_demo_avrcp_connection_t a2dp_sink_demo_avrcp_connection;
  * SDP records and register them with the SDP service. 
  *
  * @text Note, currently only the SBC codec is supported. 
- * If you want to store the audio data in a file, you'll need to define STORE_TO_WAV_FILE. 
- * If STORE_TO_WAV_FILE directive is defined, the SBC decoder needs to get initialized when a2dp_sink_packet_handler receives event A2DP_SUBEVENT_STREAM_STARTED. 
  * The initialization of the SBC decoder requires a callback that handles PCM data:
- * - handle_pcm_data - handles PCM audio frames. Here, they are stored in a wav file if STORE_TO_WAV_FILE is defined, and/or played using the audio library.
+ * - handle_pcm_data - handles PCM audio frames. Here, they are played using the audio library.
  */
 
 /* LISTING_START(MainConfiguration): Setup Audio Sink and AVRCP services */
@@ -256,14 +217,6 @@ static int setup_demo(void){
     // init protocols
     l2cap_init();
     sdp_init();
-#ifdef ENABLE_BLE
-    // Initialize LE Security Manager. Needed for cross-transport key derivation
-    sm_init();
-#endif
-#ifdef ENABLE_AVRCP_COVER_ART
-    goep_client_init();
-    avrcp_cover_art_client_init();
-#endif
 
     // Init profiles
     a2dp_sink_init();
@@ -271,44 +224,35 @@ static int setup_demo(void){
     avrcp_controller_init();
     avrcp_target_init();
 
-
     // Configure A2DP Sink
     a2dp_sink_register_packet_handler(&a2dp_sink_packet_handler);
     a2dp_sink_register_media_handler(&handle_l2cap_media_data_packet);
     a2dp_sink_demo_stream_endpoint_t * stream_endpoint = &a2dp_sink_demo_stream_endpoint;
-    avdtp_stream_endpoint_t * local_stream_endpoint = a2dp_sink_create_stream_endpoint(AVDTP_AUDIO,
-                                                                                       AVDTP_CODEC_SBC, media_sbc_codec_capabilities, sizeof(media_sbc_codec_capabilities),
-                                                                                       stream_endpoint->media_sbc_codec_configuration, sizeof(stream_endpoint->media_sbc_codec_configuration));
+    avdtp_stream_endpoint_t * local_stream_endpoint = a2dp_sink_create_stream_endpoint(
+        AVDTP_AUDIO, AVDTP_CODEC_SBC, 
+        media_sbc_codec_capabilities, sizeof(media_sbc_codec_capabilities),
+        stream_endpoint->media_sbc_codec_configuration, sizeof(stream_endpoint->media_sbc_codec_configuration));
     btstack_assert(local_stream_endpoint != NULL);
     // - Store stream enpoint's SEP ID, as it is used by A2DP API to identify the stream endpoint
     stream_endpoint->a2dp_local_seid = avdtp_local_seid(local_stream_endpoint);
-
 
     // Configure AVRCP Controller + Target
     avrcp_register_packet_handler(&avrcp_packet_handler);
     avrcp_controller_register_packet_handler(&avrcp_controller_packet_handler);
     avrcp_target_register_packet_handler(&avrcp_target_packet_handler);
     
-
     // Configure SDP
-
     // - Create and register A2DP Sink service record
     memset(sdp_avdtp_sink_service_buffer, 0, sizeof(sdp_avdtp_sink_service_buffer));
     a2dp_sink_create_sdp_record(sdp_avdtp_sink_service_buffer, sdp_create_service_record_handle(),
-                                AVDTP_SINK_FEATURE_MASK_HEADPHONE, NULL, NULL);
+        AVDTP_SINK_FEATURE_MASK_HEADPHONE, NULL, NULL);
     sdp_register_service(sdp_avdtp_sink_service_buffer);
 
     // - Create AVRCP Controller service record and register it with SDP. We send Category 1 commands to the media player, e.g. play/pause
     memset(sdp_avrcp_controller_service_buffer, 0, sizeof(sdp_avrcp_controller_service_buffer));
     uint16_t controller_supported_features = 1 << AVRCP_CONTROLLER_SUPPORTED_FEATURE_CATEGORY_PLAYER_OR_RECORDER;
-#ifdef AVRCP_BROWSING_ENABLED
-    controller_supported_features |= 1 << AVRCP_CONTROLLER_SUPPORTED_FEATURE_BROWSING;
-#endif
-#ifdef ENABLE_AVRCP_COVER_ART
-    controller_supported_features |= 1 << AVRCP_CONTROLLER_SUPPORTED_FEATURE_COVER_ART_GET_LINKED_THUMBNAIL;
-#endif
     avrcp_controller_create_sdp_record(sdp_avrcp_controller_service_buffer, sdp_create_service_record_handle(),
-                                       controller_supported_features, NULL, NULL);
+        controller_supported_features, NULL, NULL);
     sdp_register_service(sdp_avrcp_controller_service_buffer);
 
     // - Create and register A2DP Sink service record
@@ -316,22 +260,22 @@ static int setup_demo(void){
     memset(sdp_avrcp_target_service_buffer, 0, sizeof(sdp_avrcp_target_service_buffer));
     uint16_t target_supported_features = 1 << AVRCP_TARGET_SUPPORTED_FEATURE_CATEGORY_MONITOR_OR_AMPLIFIER;
     avrcp_target_create_sdp_record(sdp_avrcp_target_service_buffer,
-                                   sdp_create_service_record_handle(), target_supported_features, NULL, NULL);
+        sdp_create_service_record_handle(), target_supported_features, NULL, NULL);
     sdp_register_service(sdp_avrcp_target_service_buffer);
 
     // - Create and register Device ID (PnP) service record
     memset(device_id_sdp_service_buffer, 0, sizeof(device_id_sdp_service_buffer));
     device_id_create_sdp_record(device_id_sdp_service_buffer,
-                                sdp_create_service_record_handle(), DEVICE_ID_VENDOR_ID_SOURCE_BLUETOOTH, BLUETOOTH_COMPANY_ID_BLUEKITCHEN_GMBH, 1, 1);
+        sdp_create_service_record_handle(), DEVICE_ID_VENDOR_ID_SOURCE_BLUETOOTH, BLUETOOTH_COMPANY_ID_BLUEKITCHEN_GMBH, 1, 1);
     sdp_register_service(device_id_sdp_service_buffer);
-
 
     // Configure GAP - discovery / connection
 
-    // - Set local name with a template Bluetooth address, that will be automatically
-    //   replaced with an actual address once it is available, i.e. when BTstack boots
-    //   up and starts talking to a Bluetooth module.
-    gap_set_local_name("my-a2dp@RX-V1600");
+    // - Set local name
+    //   a template Bluetooth address will be automatically
+    //   replaced with an actual address once it is available, 
+    //   i.e. when BTstack boots up and starts talking to a Bluetooth module.
+    gap_set_local_name("picow-a2dp@RX-V1600");
 
     // - Allow to show up in Bluetooth inquiry
     gap_discoverable_control(1);
@@ -346,7 +290,6 @@ static int setup_demo(void){
     //   - This allows A2DP Source, e.g. smartphone, to become master when we re-connect to it.
     gap_set_allow_role_switch(true);
 
-
     // Register for HCI events
     hci_event_callback_registration.callback = &hci_packet_handler;
     hci_add_event_handler(&hci_event_callback_registration);
@@ -358,9 +301,6 @@ static int setup_demo(void){
     } else {
         printf("Audio playback supported.\n");
     }
-#ifdef STORE_TO_WAV_FILE 
-   printf("Audio will be stored to \'%s\' file.\n",  wav_filename);
-#endif
 #endif
     return 0;
 }
@@ -369,11 +309,6 @@ static int setup_demo(void){
 
 static void playback_handler(int16_t * buffer, uint16_t num_audio_frames){
 
-#ifdef STORE_TO_WAV_FILE
-    int       wav_samples = num_audio_frames * NUM_CHANNELS;
-    int16_t * wav_buffer  = buffer;
-#endif
-    
     // called from lower-layer but guaranteed to be on main thread
     if (sbc_frame_size == 0){
         memset(buffer, 0, num_audio_frames * BYTES_PER_FRAME);
@@ -383,8 +318,8 @@ static void playback_handler(int16_t * buffer, uint16_t num_audio_frames){
     // first fill from resampled audio
     uint32_t bytes_read;
     btstack_ring_buffer_read(&decoded_audio_ring_buffer, (uint8_t *) buffer, num_audio_frames * BYTES_PER_FRAME, &bytes_read);
-    buffer          += bytes_read / NUM_CHANNELS;
-    num_audio_frames   -= bytes_read / BYTES_PER_FRAME;
+    buffer += bytes_read / NUM_CHANNELS;
+    num_audio_frames -= bytes_read / BYTES_PER_FRAME;
 
     // then start decoding sbc frames using request_* globals
     request_buffer = buffer;
@@ -395,11 +330,6 @@ static void playback_handler(int16_t * buffer, uint16_t num_audio_frames){
         btstack_ring_buffer_read(&sbc_frame_ring_buffer, sbc_frame, sbc_frame_size, &bytes_read);
         btstack_sbc_decoder_process_data(&state, 0, sbc_frame, sbc_frame_size);
     }
-
-#ifdef STORE_TO_WAV_FILE
-    audio_frame_count += num_audio_frames;
-    wav_writer_write_int16(wav_samples, wav_buffer);
-#endif
 }
 
 static void handle_pcm_data(int16_t * data, int num_audio_frames, int num_channels, int sample_rate, void * context){
@@ -409,10 +339,6 @@ static void handle_pcm_data(int16_t * data, int num_audio_frames, int num_channe
 
     const btstack_audio_sink_t * audio_sink = btstack_audio_sink_get_instance();
     if (!audio_sink){
-#ifdef STORE_TO_WAV_FILE
-        audio_frame_count += num_audio_frames;
-        wav_writer_write_int16(num_audio_frames * NUM_CHANNELS, data);
-#endif
         return;
     }
 
@@ -439,10 +365,6 @@ static void handle_pcm_data(int16_t * data, int num_audio_frames, int num_channe
 static int media_processing_init(media_codec_configuration_sbc_t * configuration){
     if (media_initialized) return 0;
     btstack_sbc_decoder_init(&state, mode, handle_pcm_data, NULL);
-
-#ifdef STORE_TO_WAV_FILE
-    wav_writer_open(wav_filename, configuration->num_channels, configuration->sampling_frequency);
-#endif
 
     btstack_ring_buffer_init(&sbc_frame_ring_buffer, sbc_frame_storage, sizeof(sbc_frame_storage));
     btstack_ring_buffer_init(&decoded_audio_ring_buffer, decoded_audio_storage, sizeof(decoded_audio_storage));
@@ -499,14 +421,6 @@ static void media_processing_close(void){
     sbc_frame_size = 0;
 #ifdef HAVE_BTSTACK_AUDIO_EFFECTIVE_SAMPLERATE
     l2cap_stream_started = 0;
-#endif
-
-#ifdef STORE_TO_WAV_FILE                 
-    wav_writer_close();
-    uint32_t total_frames_nr = state.good_frames_nr + state.bad_frames_nr + state.zero_frames_nr;
-
-    printf("WAV Writer: Decoding done. Processed %u SBC frames:\n - %d good\n - %d bad\n", total_frames_nr, state.good_frames_nr, total_frames_nr - state.good_frames_nr);
-    printf("WAV Writer: Wrote %u audio frames to wav file: %s\n", audio_frame_count, wav_filename);
 #endif
 
     // stop audio playback
@@ -664,86 +578,6 @@ static void hci_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *p
     }
 }
 
-#ifdef ENABLE_AVRCP_COVER_ART
-static void a2dp_sink_demo_cover_art_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, uint16_t size) {
-    UNUSED(channel);
-    UNUSED(size);
-    uint8_t status;
-    uint16_t cid;
-    switch (packet_type){
-        case BIP_DATA_PACKET:
-            if (a2dp_sink_cover_art_download_active){
-                a2dp_sink_cover_art_file_size += size;
-#ifdef HAVE_POSIX_FILE_IO
-                fwrite(packet, 1, size, a2dp_sink_cover_art_file);
-#else
-                printf("Cover art       : TODO - store %u bytes image data\n", size);
-#endif
-            } else {
-                uint16_t i;
-                for (i=0;i<size;i++){
-                    putchar(packet[i]);
-                }
-                printf("\n");
-            }
-            break;
-        case HCI_EVENT_PACKET:
-            switch (hci_event_packet_get_type(packet)){
-                case HCI_EVENT_AVRCP_META:
-                    switch (hci_event_avrcp_meta_get_subevent_code(packet)){
-                        case AVRCP_SUBEVENT_COVER_ART_CONNECTION_ESTABLISHED:
-                            status = avrcp_subevent_cover_art_connection_established_get_status(packet);
-                            cid = avrcp_subevent_cover_art_connection_established_get_cover_art_cid(packet);
-                            if (status == ERROR_CODE_SUCCESS){
-                                printf("Cover Art       : connection established, cover art cid 0x%02x\n", cid);
-                                a2dp_sink_demo_cover_art_client_connected = true;
-                            } else {
-                                printf("Cover Art       : connection failed, status 0x%02x\n", status);
-                                a2dp_sink_demo_cover_art_cid = 0;
-                            }
-                            break;
-                        case AVRCP_SUBEVENT_COVER_ART_OPERATION_COMPLETE:
-                            if (a2dp_sink_cover_art_download_active){
-                                a2dp_sink_cover_art_download_active = false;
-#ifdef HAVE_POSIX_FILE_IO
-                                printf("Cover Art       : download of '%s complete, size %u bytes'\n",
-                                       a2dp_sink_demo_thumbnail_path, a2dp_sink_cover_art_file_size);
-                                fclose(a2dp_sink_cover_art_file);
-                                a2dp_sink_cover_art_file = NULL;
-#else
-                                printf("Cover Art: download completed\n");
-#endif
-                            }
-                            break;
-                        case AVRCP_SUBEVENT_COVER_ART_CONNECTION_RELEASED:
-                            a2dp_sink_demo_cover_art_client_connected = false;
-                            a2dp_sink_demo_cover_art_cid = 0;
-                            printf("Cover Art       : connection released 0x%02x\n",
-                                   avrcp_subevent_cover_art_connection_released_get_cover_art_cid(packet));
-                            break;
-                        default:
-                            break;
-                    }
-                    break;
-                default:
-                    break;
-            }
-            break;
-        default:
-            break;
-    }
-}
-
-static uint8_t a2dp_sink_demo_cover_art_connect(void) {
-    uint8_t status;
-    status = avrcp_cover_art_client_connect(&a2dp_sink_demo_cover_art_client, a2dp_sink_demo_cover_art_packet_handler,
-                                            device_addr, a2dp_sink_demo_ertm_buffer,
-                                            sizeof(a2dp_sink_demo_ertm_buffer), &a2dp_sink_demo_ertm_config,
-                                            &a2dp_sink_demo_cover_art_cid);
-    return status;
-}
-#endif
-
 static void avrcp_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, uint16_t size){
     UNUSED(channel);
     UNUSED(size);
@@ -827,13 +661,6 @@ static void avrcp_controller_packet_handler(uint8_t packet_type, uint16_t channe
             avrcp_controller_enable_notification(avrcp_connection->avrcp_cid, AVRCP_NOTIFICATION_EVENT_PLAYBACK_STATUS_CHANGED);
             avrcp_controller_enable_notification(avrcp_connection->avrcp_cid, AVRCP_NOTIFICATION_EVENT_NOW_PLAYING_CONTENT_CHANGED);
             avrcp_controller_enable_notification(avrcp_connection->avrcp_cid, AVRCP_NOTIFICATION_EVENT_TRACK_CHANGED);
-
-#ifdef ENABLE_AVRCP_COVER_ART
-            // image handles become invalid on player change, registe for notifications
-            avrcp_controller_enable_notification(a2dp_sink_demo_avrcp_connection.avrcp_cid, AVRCP_NOTIFICATION_EVENT_UIDS_CHANGED);
-            // trigger cover art client connection
-            a2dp_sink_demo_cover_art_connect();
-#endif
             break;
 
         case AVRCP_SUBEVENT_NOTIFICATION_STATE:
@@ -933,22 +760,6 @@ static void avrcp_controller_packet_handler(uint8_t packet_type, uint16_t channe
         case AVRCP_SUBEVENT_PLAYER_APPLICATION_VALUE_RESPONSE:
             printf("AVRCP Controller: Set Player App Value %s\n", avrcp_ctype2str(avrcp_subevent_player_application_value_response_get_command_type(packet)));
             break;
-
-#ifdef ENABLE_AVRCP_COVER_ART
-        case AVRCP_SUBEVENT_NOTIFICATION_EVENT_UIDS_CHANGED:
-            if (a2dp_sink_demo_cover_art_client_connected){
-                printf("AVRCP Controller: UIDs changed -> disconnect cover art client\n");
-                avrcp_cover_art_client_disconnect(a2dp_sink_demo_cover_art_cid);
-            }
-            break;
-
-        case AVRCP_SUBEVENT_NOW_PLAYING_COVER_ART_INFO:
-            if (avrcp_subevent_now_playing_cover_art_info_get_value_len(packet) == 7){
-                memcpy(a2dp_sink_demo_image_handle, avrcp_subevent_now_playing_cover_art_info_get_value(packet), 7);
-                printf("AVRCP Controller: Cover Art %s\n", a2dp_sink_demo_image_handle);
-            }
-            break;
-#endif
 
         default:
             break;
@@ -1154,23 +965,6 @@ static void show_usage(void){
     printf("t - volume up   for 10 percent\n");
     printf("T - volume down for 10 percent\n");
     printf("V - toggle Battery status from AVRCP_BATTERY_STATUS_NORMAL to AVRCP_BATTERY_STATUS_FULL_CHARGE\n");
-
-#ifdef ENABLE_AVRCP_COVER_ART
-    printf("\n--- Cover Art Client ---\n");
-    printf("d - connect to addr %s\n", bd_addr_to_str(device_addr));
-    printf("D - disconnect\n");
-    if (a2dp_sink_demo_cover_art_client_connected == false){
-        if (a2dp_sink_demo_avrcp_connection.avrcp_cid == 0){
-            printf("Not connected, press 'b' or 'c' to first connect AVRCP, then press 'd' to connect cover art client\n");
-        } else {
-            printf("Not connected, press 'd' to connect cover art client\n");
-        }
-    } else if (a2dp_sink_demo_image_handle[0] == 0){
-        printf("No image handle, use 'j' to get current track info\n");
-    }
-    printf("---\n");
-#endif
-
 }
 #endif
 
@@ -1336,25 +1130,6 @@ static void stdin_process(char cmd){
             printf("AVRCP: release long button press REWIND\n");
             status = avrcp_controller_release_press_and_hold_cmd(avrcp_connection->avrcp_cid);
             break;
-#ifdef ENABLE_AVRCP_COVER_ART
-        case 'd':
-            printf(" - Create AVRCP Cover Art connection to addr %s.\n", bd_addr_to_str(device_addr));
-            status = a2dp_sink_demo_cover_art_connect();
-            break;
-        case 'D':
-            printf(" - AVRCP Cover Art disconnect from addr %s.\n", bd_addr_to_str(device_addr));
-            status = avrcp_cover_art_client_disconnect(a2dp_sink_demo_cover_art_cid);
-            break;
-        case '@':
-            printf("Get linked thumbnail for '%s'\n", a2dp_sink_demo_image_handle);
-#ifdef HAVE_POSIX_FILE_IO
-            a2dp_sink_cover_art_file = fopen(a2dp_sink_demo_thumbnail_path, "w");
-#endif
-            a2dp_sink_cover_art_download_active = true;
-            a2dp_sink_cover_art_file_size = 0;
-            status = avrcp_cover_art_client_get_linked_thumbnail(a2dp_sink_demo_cover_art_cid, a2dp_sink_demo_image_handle);
-            break;
-#endif
         default:
             show_usage();
             return;
