@@ -6,6 +6,7 @@ or other bluetooth A2DB source and send it via I2S to a DAC like the PCM5102.
 Based on the BTStack a2db-sink demo of the pico-examples repo.
 Not being embedded in the build structure of all examples makes it much easier
 to see what is actually required, to modularize and enhance.
+Still uses pico-extras for i2s audio.
 
 ## Programming
 * Clone Pico-SDK >= 1.5.0, Pico-Extras and OpenOCD Pico Branch from Github
@@ -22,3 +23,6 @@ Alternatively use VS Code with CMake Tools and Cortex Debug extensions as a buil
 ## WIP
 Currently the first step is done: separate the demo from the pico-examples repo.
 Target is to have a modular design with stable functionality for everyday use.
+
+## Features
+* added LED showing a2dp connection status

@@ -35,6 +35,8 @@ target_sources(${PROJECT_NAME} PRIVATE
 target_compile_definitions(${PROJECT_NAME} PRIVATE
     I2S_DATA_PIN=9
     I2S_CLOCK_PIN_BASE=10
+    BT_PIN="0000"
+    BT_NAME="PicoW-A2DB"
 )
 
 target_link_libraries(${PROJECT_NAME}

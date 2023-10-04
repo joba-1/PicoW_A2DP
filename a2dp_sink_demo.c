@@ -275,10 +275,10 @@ static int setup_demo(void){
     // Configure GAP - discovery / connection
 
     // - Set local name
-    //   a template Bluetooth address will be automatically
+    //   a '00:00:00:00:00:00' template Bluetooth address will be automatically
     //   replaced with an actual address once it is available, 
     //   i.e. when BTstack boots up and starts talking to a Bluetooth module.
-    gap_set_local_name("picow-a2dp@RX-V1600");
+    gap_set_local_name(BT_NAME);
 
     // - Allow to show up in Bluetooth inquiry
     gap_discoverable_control(1);
@@ -575,9 +575,9 @@ static void hci_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *p
     if (packet_type != HCI_EVENT_PACKET) return;
     if (hci_event_packet_get_type(packet) == HCI_EVENT_PIN_CODE_REQUEST) {
         bd_addr_t address;
-        printf("Pin code request - using '0000'\n");
+        printf("Pin code request - using '%s'\n", BT_PIN);
         hci_event_pin_code_request_get_bd_addr(packet, address);
-        gap_pin_code_response(address, "0000");
+        gap_pin_code_response(address, BT_PIN);
     }
 }
 
