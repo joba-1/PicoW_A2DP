@@ -67,6 +67,9 @@
 #include <stdio.h>
 #include <string.h>
 
+// for led (a2dp connection status)
+#include "pico/cyw43_arch.h"
+
 #include "btstack.h"
 #include "btstack_resample.h"
 
@@ -871,6 +874,8 @@ static void a2dp_sink_packet_handler(uint8_t packet_type, uint16_t channel, uint
                 break;
             }
 
+            cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, true);
+
             a2dp_subevent_stream_established_get_bd_addr(packet, a2dp_conn->addr);
             a2dp_conn->a2dp_cid = a2dp_subevent_stream_established_get_a2dp_cid(packet);
             a2dp_conn->a2dp_local_seid = a2dp_subevent_stream_established_get_local_seid(packet);
@@ -911,6 +916,9 @@ static void a2dp_sink_packet_handler(uint8_t packet_type, uint16_t channel, uint
             printf("A2DP  Sink      : Stream released\n");
             a2dp_conn->stream_state = STREAM_STATE_CLOSED;
             media_processing_close();
+
+            cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, false);
+
             break;
         
         case A2DP_SUBEVENT_SIGNALING_CONNECTION_RELEASED:
