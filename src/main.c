@@ -9,6 +9,7 @@
 // from btstack_audio_pico.c
 const btstack_audio_sink_t * btstack_audio_pico_sink_get_instance(void);
 
+
 // Unrecoverable error happened. Reboot by setting watchdog.
 // Blink led until watchdog fires
 // If RUN_PIN is defined then try reset via run pin after 5 blinks

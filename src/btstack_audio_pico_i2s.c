@@ -56,8 +56,8 @@
 
 #include "pico/audio_i2s.h"
 
-#define DRIVER_POLL_INTERVAL_MS          5
-#define SAMPLES_PER_BUFFER 512
+#define DRIVER_POLL_INTERVAL_MS   5
+#define SAMPLES_PER_BUFFER      512
 
 // client
 static void (*playback_callback)(int16_t * buffer, uint16_t num_samples);
@@ -160,7 +160,7 @@ static int btstack_audio_pico_sink_init(
 }
 
 static void btstack_audio_pico_sink_set_volume(uint8_t volume){
-    printf("btstack_audio_pico_sink_set_volume: %d\n", volume);
+    // printf("btstack_audio_pico_sink_set_volume: %d\n", volume);
 }
 
 static void btstack_audio_pico_sink_start_stream(void){
