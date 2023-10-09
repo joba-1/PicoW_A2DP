@@ -246,12 +246,6 @@ static void event_handler(uint8_t event, uint8_t *packet) {
             //        bd_addr_to_str(_a2dp->addr), _a2dp->a2dp_cid, _a2dp->a2dp_local_seid);
             break;
         
-#ifdef ENABLE_AVDTP_ACCEPTOR_EXPLICIT_START_STREAM_CONFIRMATION
-        case A2DP_SUBEVENT_START_STREAM_REQUESTED:
-            printf("A2DP  Sink      : Explicit Accept to start stream, local_seid %d\n", a2dp_subevent_start_stream_requested_get_local_seid(packet));
-            a2dp_sink_start_stream_accept(_cid, _seid);
-            break;
-#endif
         case A2DP_SUBEVENT_STREAM_STARTED:
             // printf("A2DP  Sink      : Stream started\n");
             _stream_state = STREAM_STATE_PLAYING;
@@ -374,18 +368,6 @@ static void media_handler(uint8_t seid, uint8_t *packet, uint16_t size) {
     // decide on audio sync drift based on number of sbc frames in queue
     int sbc_frames_in_buffer = btstack_ring_buffer_bytes_available(&_sbc_frame_ring_buffer) / _sbc_frame_size;
 
-#ifdef HAVE_BTSTACK_AUDIO_EFFECTIVE_SAMPLERATE
-    if( !l2cap_stream_started && audio_stream_started ) {
-        l2cap_stream_started = 1;
-        btstack_sample_rate_compensation_init( &sample_rate_compensation, btstack_run_loop_get_time_ms(), a2dp_sink_demo_a2dp_connection.sbc_configuration.sampling_frequency, FLOAT_TO_Q15(1.f) );
-    }
-    // update sample rate compensation
-    if( audio_stream_started && (audio != NULL)) {
-        uint32_t resampling_factor = btstack_sample_rate_compensation_update( &sample_rate_compensation, btstack_run_loop_get_time_ms(), sbc_header.num_frames*128, audio->get_samplerate() );
-        btstack_resample_set_factor(&_a2dp->_resample_instance, resampling_factor);
-//        printf("sbc buffer level :            %"PRIu32"\n", btstack_ring_buffer_bytes_available(&_a2dp->_sbc_frame_ring_buffer));
-    }
-#else
     uint32_t resampling_factor;
 
     // nominal factor (fixed-point 2^16) and compensation offset
@@ -401,7 +383,6 @@ static void media_handler(uint8_t seid, uint8_t *packet, uint16_t size) {
     }
 
     btstack_resample_set_factor(&_resample_instance, resampling_factor);
-#endif
 
     // start stream if enough frames buffered
     if (!_audio_stream_started && sbc_frames_in_buffer >= OPTIMAL_FRAMES_MIN){
