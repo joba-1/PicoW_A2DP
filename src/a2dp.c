@@ -7,6 +7,8 @@
 // for connection led 
 #include <pico/cyw43_arch.h>
 
+#include "avrcp.h"
+
 // from btstack_audio_pico.c
 const btstack_audio_sink_t * btstack_audio_pico_sink_get_instance(void);
 
@@ -62,6 +64,7 @@ int16_t * _request_buffer = 0;
 int _request_frames = 0;
 
 
+// process volume on decoded frames and send to i2s buffer or ringbuffer
 static void handle_pcm_data(int16_t * data, int num_audio_frames, int num_channels, int sample_rate, void * context) {
     UNUSED(sample_rate);
     UNUSED(context);
@@ -70,6 +73,23 @@ static void handle_pcm_data(int16_t * data, int num_audio_frames, int num_channe
     const btstack_audio_sink_t * audio_sink = btstack_audio_sink_get_instance();
     if (!audio_sink){
         return;
+    }
+
+    // adjust volume
+    int32_t volume = 1L + avrcp_get_volume();  // 1..128
+    int32_t samples = num_audio_frames * NUM_CHANNELS;
+    int32_t sample;
+    for( size_t i=0; i<samples; ++i ) {
+        sample = (volume * data[i]) >> 7;
+        if( sample < INT16_MIN) {
+            data[i] = INT16_MIN;
+        } 
+        else if( sample > INT16_MAX) {
+            data[i] = INT16_MAX;
+        } 
+        else {
+            data[i] = sample;
+        } 
     }
 
     // resample into request buffer - add some additional space for resampling
@@ -93,6 +113,7 @@ static void handle_pcm_data(int16_t * data, int num_audio_frames, int num_channe
 }
 
 
+/// provide pcm frames to i2s sink
 static void playback_handler(int16_t * buffer, uint16_t num_audio_frames) {
 
     // called from lower-layer but guaranteed to be on main thread
