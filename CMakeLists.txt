@@ -25,16 +25,18 @@ add_executable(${PROJECT_NAME})
 
 target_sources(${PROJECT_NAME} PRIVATE
     ${PICO_SDK_PATH}/lib/btstack/src/btstack_audio.c
-    a2dp_sink_demo.c
-    btstack_audio_pico.c
-    picow_bt_example_background.c
-    picow_bt_example_common.c
-    picow_bt_example_common.h
+    src/btstack_audio_pico_i2s.c
+    src/main.c
+    src/bt.c
+    src/sdp.c
+    src/a2dp.c
+    src/avrcp.c
 )
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE
     I2S_DATA_PIN=9
     I2S_CLOCK_PIN_BASE=10
+    RUN_PIN=22
     BT_PIN="0000"
     BT_NAME="PicoW-A2DB"
 )
