@@ -35,3 +35,5 @@ Target is to have a modular design with stable functionality for everyday use.
     * blink on fatal errors
 * configurable BT device name and BT connection pin
 * configurable hard reset via pin
+* Volume control
+* Reboot on disconnect to work around buggy reconnect
