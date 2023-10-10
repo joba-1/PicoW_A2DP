@@ -43,7 +43,8 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
 
 target_link_libraries(${PROJECT_NAME}
     pico_stdlib
-    pico_stdio_uart  # use uart, not usb for stdio e.g. via picoprobe
+    pico_stdio_usb  # use usb, not uart for stdio
+    # pico_stdio_uart  # use uart, not usb for stdio e.g. via picoprobe
     pico_audio_i2s
     pico_btstack_sbc_decoder
     pico_btstack_classic
