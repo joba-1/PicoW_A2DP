@@ -2,12 +2,7 @@
 #include "pico/cyw43_arch.h"
 #include "hardware/watchdog.h"
 
-#include "btstack_audio.h"
-
 #include "bt.h"
-
-// from btstack_audio_pico.c
-const btstack_audio_sink_t * btstack_audio_pico_sink_get_instance(void);
 
 
 // Unrecoverable error happened. Reboot by setting watchdog.
