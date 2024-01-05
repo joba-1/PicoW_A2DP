@@ -18,6 +18,7 @@ Feel free to ask if you need help to get this running. Comments or improvements 
 * Used pins for connectiong the DAC are defined in CMakeLists.txt
 * Bluetooth name and pin also defined in CMakeLists.txt
 * If RUN_PIN is defined the pin will be used to pull down RUN pin to reset on fatal errors
+* CONN_PIN high indicates active bt connection (I use it to switch my AV receiver input)
 
 ## Debugging / Flashing
 Use commandline to cmake the firmware, then copy the UF2 to the USB filesystem or use picoprobe and openocd to flash the firmware and openocd/gdb to debug.

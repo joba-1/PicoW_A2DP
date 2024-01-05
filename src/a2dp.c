@@ -263,6 +263,7 @@ static void event_handler(uint8_t event, uint8_t *packet) {
             _seid = a2dp_subevent_stream_established_get_local_seid(packet);
             _stream_state = STREAM_STATE_OPEN;
             cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, true);
+            gpio_put(CONN_PIN, 1);
 
             // printf("A2DP  Sink      : Streaming connection is established, address %s, cid 0x%02x, local seid %d\n",
             //        bd_addr_to_str(_a2dp->addr), _a2dp->a2dp_cid, _a2dp->a2dp_local_seid);
@@ -290,6 +291,7 @@ static void event_handler(uint8_t event, uint8_t *packet) {
             _stream_state = STREAM_STATE_CLOSED;
             media_processing_close();
             cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, false);
+            gpio_put(CONN_PIN, 0);
             watchdog_enable(100, true);  // reboot in 0.1s, since reconnect is buggy
             break;
         
@@ -299,6 +301,7 @@ static void event_handler(uint8_t event, uint8_t *packet) {
             // _stream_state = STREAM_STATE_CLOSED;
             // media_processing_close();
             // cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, false);
+            // gpio_put(CONN_PIN, 0);
             break;
         
         default:
@@ -419,6 +422,11 @@ static void media_handler(uint8_t seid, uint8_t *packet, uint16_t size) {
 void a2dp_sink_begin() {
     // Init I2S interface
     btstack_audio_sink_set_instance(btstack_audio_pico_sink_get_instance());
+
+    // Init connection indicator pin (high if bt a2dp stream connected)
+    gpio_init(CONN_PIN);
+    gpio_set_dir(CONN_PIN, GPIO_OUT);
+    gpio_put(CONN_PIN, 0);  // set to 1 while a bt connection is active
 
     a2dp_sink_init();
 
