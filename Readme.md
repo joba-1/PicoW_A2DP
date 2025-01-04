@@ -1,6 +1,6 @@
 # Raspberry Pico W A2DP Sink to I2S/DAC
 
-Use a Raspberry Pico W or Pico2 W to receive music from a smartphone 
+Use a Raspberry Pico W (Pico2 W not working as of SDK 2.1.0) to receive music from a smartphone 
 or other bluetooth A2DB source and send it via I2S to a DAC like the PCM5102.
 
 Based on the BTStack a2db-sink demo of the pico-examples repo.
@@ -42,13 +42,12 @@ cp -av ../pico-examples/pico_w/bt/config/btstack_config.h .
 # optionally update pins and bt name in CMakeLists.txt, then
 mkdir build
 cd build
-cmake -DPICO_BOARD=pico2_w ..
-# cmake -DPICO_BOARD=pico_w ..
+# cmake -DPICO_BOARD=pico2_w ..
+cmake -DPICO_BOARD=pico_w ..
 make -j8
 
 # bring pico in boot mode (start with bootsel pressed), then
-cp -av picow-a2dp.uf2 /run/media/$USER/RP2350/
-# cp -av picow-a2dp.uf2 /run/media/$USER/RP2040/
+cp -av picow-a2dp.uf2 /run/media/$USER/RP2??0/
 ```
 * For optional flashing/debugging with a picoprobe connect Pico-W power-, debug- and optionally uart-pins and clone OpenOCD Pico Branch from raspberrypi github
 
@@ -85,4 +84,4 @@ Status is: already works pretty well with Pico W. Pico2 W can be built but loose
 * configurable hard reset via pin
 * Volume control
 * Reboot on disconnect to work around buggy reconnect
-* WIP: Support pico2_w 
+* WIP: Support pico2_w (on hold until at least the official a2dp example works)
