@@ -1,6 +1,6 @@
 # Raspberry Pico W A2DP Sink to I2S/DAC
 
-Use a Raspberry Pico W to receive music from a smartphone 
+Use a Raspberry Pico W or Pico2 W to receive music from a smartphone 
 or other bluetooth A2DB source and send it via I2S to a DAC like the PCM5102.
 
 Based on the BTStack a2db-sink demo of the pico-examples repo.
@@ -11,8 +11,46 @@ Still uses pico-extras for i2s audio.
 Feel free to ask if you need help to get this running. Comments or improvements welcome :)
 
 ## Programming
-* Clone Pico-SDK >= 1.5.0, Pico-Extras and OpenOCD Pico Branch from Github
-* For flashing/debugging with a picoprobe connect Pico-W power-, debug- and optionally uart-pins
+* Clone Pico-SDK (>= 1.5.0 for Pico W, >= 2.0.0 for Pico2 W), Pico-Extras from Github
+```
+# any directory name for your sdk and build environment
+base=~/pico2
+mkdir "$base"
+
+# install sdk (maybe use branch or tag other than master, e.g. 2.1.0 or 1.5.1) 
+cd "$base"
+git clone git@github.com:raspberrypi/pico-sdk.git --branch master
+cd pico-sdk
+git submodule update --init
+cd ..
+export PICO_SDK_PATH="$base"/pico-sdk
+
+git clone git@github.com:raspberrypi/pico-extras.git
+export PICO_EXTRAS_PATH="$base"/pico-extras/
+
+git clone https://github.com/joba-1/PicoW_A2DP.git
+cd PicoW_A2DP
+
+# optionally update files taken from sdk, extras or examples
+cp -av $PICO_SDK_PATH/external/pico_sdk_import.cmake .
+cp -av $PICO_EXTRAS_PATH/external/pico_extras_import.cmake .
+cd ..
+git clone git@github.com:raspberrypi/pico-examples.git
+cd -
+cp -av ../pico-examples/pico_w/bt/config/btstack_config.h .
+
+# optionally update pins and bt name in CMakeLists.txt, then
+mkdir build
+cd build
+cmake -DPICO_BOARD=pico2_w ..
+# cmake -DPICO_BOARD=pico_w ..
+make -j8
+
+# bring pico in boot mode (start with bootsel pressed), then
+cp -av picow-a2dp.uf2 /run/media/$USER/RP2350/
+# cp -av picow-a2dp.uf2 /run/media/$USER/RP2040/
+```
+* For optional flashing/debugging with a picoprobe connect Pico-W power-, debug- and optionally uart-pins and clone OpenOCD Pico Branch from raspberrypi github
 
 ## Configuration
 * Used pins for connectiong the DAC are defined in CMakeLists.txt
@@ -47,3 +85,4 @@ Status is: already works pretty well. Will probably wait for the btstack to stab
 * configurable hard reset via pin
 * Volume control
 * Reboot on disconnect to work around buggy reconnect
+* Support pico2_w
