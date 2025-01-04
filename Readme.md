@@ -1,6 +1,6 @@
-# Raspberry Pico W A2DP Sink to I2S/DAC
+# Raspberry Pico W or Pico2 W A2DP Sink to I2S/DAC
 
-Use a Raspberry Pico W (Pico2 W not working as of SDK 2.1.0) to receive music from a smartphone 
+Use a Raspberry Pico W or Pico2 W to receive music from a smartphone 
 or other bluetooth A2DB source and send it via I2S to a DAC like the PCM5102.
 
 Based on the BTStack a2db-sink demo of the pico-examples repo.
@@ -11,43 +11,28 @@ Still uses pico-extras for i2s audio.
 Feel free to ask if you need help to get this running. Comments or improvements welcome :)
 
 ## Programming
-* Clone Pico-SDK (>= 1.5.0 for Pico W, >= 2.0.0 for Pico2 W), Pico-Extras from Github
+* Clone Pico-SDK, Pico-Extras and PicoW_A2DP from Github, build and flash
+* tested >= 1.5.0 for Pico W, >= 2.1.0 for Pico2 W
 ```
-# any directory name for your sdk and build environment
-base=~/pico2
+base=~/pico-2.1.0
 mkdir "$base"
-
-# install sdk (maybe use branch or tag other than master, e.g. 2.1.0 or 1.5.1) 
 cd "$base"
-git clone git@github.com:raspberrypi/pico-sdk.git --branch master
+git clone git@github.com:raspberrypi/pico-sdk.git --branch 2.1.0
 cd pico-sdk
 git submodule update --init
 cd ..
 export PICO_SDK_PATH="$base"/pico-sdk
-
-git clone git@github.com:raspberrypi/pico-extras.git
+git clone git@github.com:raspberrypi/pico-extras.git --branch sdk-2.1.0
 export PICO_EXTRAS_PATH="$base"/pico-extras/
-
 git clone https://github.com/joba-1/PicoW_A2DP.git
-cd PicoW_A2DP
-
-# optionally update files taken from sdk, extras or examples
-cp -av $PICO_SDK_PATH/external/pico_sdk_import.cmake .
-cp -av $PICO_EXTRAS_PATH/external/pico_extras_import.cmake .
-cd ..
-git clone git@github.com:raspberrypi/pico-examples.git
-cd -
-cp -av ../pico-examples/pico_w/bt/config/btstack_config.h .
-
-# optionally update pins and bt name in CMakeLists.txt, then
-mkdir build
-cd build
-# cmake -DPICO_BOARD=pico2_w ..
-cmake -DPICO_BOARD=pico_w ..
+cd PicoW_A2DP/
+sed -i 's/RX-V1600/Pico2W-2.1.0/' CMakeLists.txt
+mkdir build && cd build
+# cmake -DPICO_BOARD=pico_w -DCMAKE_BUILD_TYPE=Debug ..
+cmake -DPICO_BOARD=pico2_w -DCMAKE_BUILD_TYPE=Debug ..
 make -j8
-
-# bring pico in boot mode (start with bootsel pressed), then
-cp -av picow-a2dp.uf2 /run/media/$USER/RP2??0/
+# boot pico into flash mode before this: 
+cp picow-a2dp.uf2 /run/media/joachim/RP2??0/
 ```
 * For optional flashing/debugging with a picoprobe connect Pico-W power-, debug- and optionally uart-pins and clone OpenOCD Pico Branch from raspberrypi github
 
@@ -73,7 +58,7 @@ Currently done:
 * modularize bt functionality: i2s, avrcp, a2dp, sdp and generic bt
 Target is to have a modular design with stable functionality for everyday use.
 
-Status is: already works pretty well with Pico W. Pico2 W can be built but looses connection after a short time
+Status is: works pretty well with Pico W and Pico2 W
 
 ## Added Features
 * LED functions
@@ -84,4 +69,4 @@ Status is: already works pretty well with Pico W. Pico2 W can be built but loose
 * configurable hard reset via pin
 * Volume control
 * Reboot on disconnect to work around buggy reconnect
-* WIP: Support pico2_w (on hold until at least the official a2dp example works)
+* WIP: Support pico2_w (need to test with dac attached)
