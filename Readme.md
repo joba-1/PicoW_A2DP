@@ -74,7 +74,7 @@ Currently done:
 * modularize bt functionality: i2s, avrcp, a2dp, sdp and generic bt
 Target is to have a modular design with stable functionality for everyday use.
 
-Status is: already works pretty well. Will probably wait for the btstack to stabilize in the pico-sdk before I try to find my own bugs...
+Status is: already works pretty well with Pico W. Pico2 W can be built but looses connection after a short time
 
 ## Added Features
 * LED functions
@@ -85,4 +85,4 @@ Status is: already works pretty well. Will probably wait for the btstack to stab
 * configurable hard reset via pin
 * Volume control
 * Reboot on disconnect to work around buggy reconnect
-* Support pico2_w
+* WIP: Support pico2_w 
