@@ -1,8 +1,8 @@
 # cd build
-# cmake -DPICO_BOARD=pico2_w ..
+# cmake -DPICO_BOARD=pico2_w -DCMAKE_BUILD_TYPE=Debug ..
 # make -j
 
-cmake_minimum_required(VERSION 3.27...3.27)
+cmake_minimum_required(VERSION 3.27...3.31)
 
 if (NOT DEFINED ENV{PICO_SDK_PATH} AND (NOT PICO_SDK_PATH))
     set(PICO_SDK_PATH ${CMAKE_CURRENT_LIST_DIR}/../pico-sdk)
