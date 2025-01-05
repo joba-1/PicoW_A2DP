@@ -15,7 +15,7 @@ const btstack_audio_sink_t * btstack_audio_pico_sink_get_instance(void);
 
 
 #define OPTIMAL_FRAMES_MIN 60
-#define OPTIMAL_FRAMES_MAX 80
+#define OPTIMAL_FRAMES_MAX 120
 #define ADDITIONAL_FRAMES  30
 #define NUM_CHANNELS       2
 #define BYTES_PER_FRAME    (2*NUM_CHANNELS)
@@ -413,7 +413,7 @@ static void media_handler(uint8_t seid, uint8_t *packet, uint16_t size) {
     btstack_resample_set_factor(&_resample_instance, resampling_factor);
 
     // start stream if enough frames buffered
-    if (!_audio_stream_started && sbc_frames_in_buffer >= OPTIMAL_FRAMES_MIN){
+    if (!_audio_stream_started && sbc_frames_in_buffer >= (OPTIMAL_FRAMES_MIN+OPTIMAL_FRAMES_MAX)/2){
         media_processing_start();
     }
 }
