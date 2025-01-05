@@ -1,16 +1,32 @@
 #ifndef _PICO_BTSTACK_BTSTACK_CONFIG_H
 #define _PICO_BTSTACK_BTSTACK_CONFIG_H
 
+// config from bt examples plus reduced slow logs should reduce hicups
+
 // BTstack features that can be enabled
-#ifdef ENABLE_BLE
-#define ENABLE_LE_PERIPHERAL
-#define ENABLE_LE_CENTRAL
-#define ENABLE_L2CAP_LE_CREDIT_BASED_FLOW_CONTROL_MODE
-#endif
-#define ENABLE_LOG_INFO
+#undef ENABLE_LOG_INFO
 #define ENABLE_LOG_ERROR
 #define ENABLE_PRINTF_HEXDUMP
 #define ENABLE_SCO_OVER_HCI
+
+#ifdef ENABLE_BLE
+#define ENABLE_GATT_CLIENT_PAIRING
+#define ENABLE_L2CAP_LE_CREDIT_BASED_FLOW_CONTROL_MODE
+#define ENABLE_LE_CENTRAL
+#define ENABLE_LE_DATA_LENGTH_EXTENSION
+#define ENABLE_LE_PERIPHERAL
+#define ENABLE_LE_PRIVACY_ADDRESS_RESOLUTION
+#define ENABLE_LE_SECURE_CONNECTIONS
+#endif
+
+#ifdef ENABLE_CLASSIC
+#define ENABLE_L2CAP_ENHANCED_RETRANSMISSION_MODE
+#define ENABLE_GOEP_L2CAP
+#endif
+
+#if defined (ENABLE_CLASSIC) && defined(ENABLE_BLE)
+#define ENABLE_CROSS_TRANSPORT_KEY_DERIVATION
+#endif
 
 // BTstack configuration. buffers, sizes, ...
 #define HCI_OUTGOING_PRE_BUFFER_SIZE 4
@@ -70,10 +86,6 @@
 #define HAVE_BTSTACK_STDIN
 
 // To get the audio demos working even with HCI dump at 115200, this truncates long ACL packets
-//#define HCI_DUMP_STDOUT_MAX_SIZE_ACL 100
-
-#ifdef ENABLE_CLASSIC
-#define ENABLE_L2CAP_ENHANCED_RETRANSMISSION_MODE
-#endif
+#define HCI_DUMP_STDOUT_MAX_SIZE_ACL 100
 
 #endif // _PICO_BTSTACK_BTSTACK_CONFIG_H
