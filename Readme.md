@@ -26,13 +26,14 @@ git clone git@github.com:raspberrypi/pico-extras.git --branch sdk-2.1.0
 export PICO_EXTRAS_PATH="$base"/pico-extras/
 git clone https://github.com/joba-1/PicoW_A2DP.git
 cd PicoW_A2DP/
-sed -i 's/RX-V1600/Pico2W-2.1.0/' CMakeLists.txt
 mkdir build && cd build
+
 # cmake -DPICO_BOARD=pico_w -DCMAKE_BUILD_TYPE=Debug ..
 cmake -DPICO_BOARD=pico2_w -DCMAKE_BUILD_TYPE=Debug ..
-make -j8
+
+make -j
 # boot pico into flash mode before this: 
-cp picow-a2dp.uf2 /run/media/joachim/RP2??0/
+cp picow-a2dp.uf2 /run/media/$USER/RP2??0/
 ```
 * For optional flashing/debugging with a picoprobe connect Pico-W power-, debug- and optionally uart-pins and clone OpenOCD Pico Branch from raspberrypi github
 
@@ -69,4 +70,4 @@ Status is: works pretty well with Pico W and Pico2 W
 * configurable hard reset via pin
 * Volume control
 * Reboot on disconnect to work around buggy reconnect
-* WIP: Support pico2_w (need to test with dac attached)
+* Support pico2_w (just change the board type for cmake)
