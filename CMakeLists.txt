@@ -1,6 +1,6 @@
 # cd build
-# cmake ..
-# make
+# cmake -DPICO_BOARD=pico2_w ..
+# make -j
 
 cmake_minimum_required(VERSION 3.27...3.27)
 
@@ -35,11 +35,11 @@ target_sources(${PROJECT_NAME} PRIVATE
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE
     PICO_AUDIO_I2S_DATA_PIN=9
-    PICO_AUDIO_I2S_CLOCK_PIN_BASE=10
+    PICO_AUDIO_I2S_CLOCK_PIN_BASE=10  # =BCK, +1=LRCLK
     # RUN_PIN=22
     CONN_PIN=26
     BT_PIN="0000"
-    BT_NAME="RX-V1600"
+    BT_NAME="Pico2W-2.1.0"
 )
 
 target_link_libraries(${PROJECT_NAME}
