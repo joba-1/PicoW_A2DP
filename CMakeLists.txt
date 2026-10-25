@@ -29,7 +29,7 @@ if (PICO_SDK_VERSION_STRING VERSION_LESS "2.3.0")
 endif ()
 
 # Bluetooth
-set(BT_NAME "PicoW A2DP" CACHE STRING "Bluetooth device name, 00:00:00:00:00:00 is replaced by the device address")
+set(BT_NAME "RX-V1600" CACHE STRING "Bluetooth device name, 00:00:00:00:00:00 is replaced by the device address")
 set(BT_PIN "0000" CACHE STRING "PIN for legacy pairing (only very old sources use it, others pair via SSP)")
 
 # I2S DAC (e.g. PCM5102)
