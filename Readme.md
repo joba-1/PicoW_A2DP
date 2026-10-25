@@ -54,7 +54,7 @@ All settings are CMake cache variables, set them with `-D<NAME>=<value>` when ru
 
 | Name | Default | Meaning |
 |---|---|---|
-| `BT_NAME` | `PicoW A2DP` | Bluetooth name, `00:00:00:00:00:00` in it is replaced by the device address |
+| `BT_NAME` | `RX-V1600` | Bluetooth name, `00:00:00:00:00:00` in it is replaced by the device address |
 | `BT_PIN` | `0000` | PIN for legacy pairing, only very old sources use it |
 | `I2S_DATA_PIN` | 9 | GPIO for I2S data (DIN) |
 | `I2S_CLOCK_PIN_BASE` | 10 | GPIO for bit clock (BCK), LRCK is the next GPIO |
