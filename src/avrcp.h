@@ -5,8 +5,9 @@
 
 void avrcp_begin();
 
-uint8_t avrcp_get_volume();  // 0..127
+// connect avrcp to the a2dp source if it does not do it itself soon
+void avrcp_connect_later( bd_addr_t addr );
+
 bool avrcp_is_connected();
-bool avrcp_is_playing();
 
 #endif
