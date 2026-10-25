@@ -30,18 +30,21 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Please inquire about commercial licensing options at 
+ * Please inquire about commercial licensing options at
  * contact@bluekitchen-gmbh.com
  *
  */
 
-#define BTSTACK_FILE__ "btstack_audio_pico.c"
+#define BTSTACK_FILE__ "btstack_audio_pico_i2s.c"
 
 /*
- *  btstack_audio_pico.c
+ *  btstack_audio_pico_i2s.c
  *
  *  Implementation of btstack_audio.h using pico_i2s
- *
+ *  Based on btstack_audio_pico.c from pico-examples, plus
+ *  - hardware is only set up once (re-init used to claim dma and pio again and panic)
+ *  - sample rate changes on re-init
+ *  - volume with a dB curve, ramped per buffer to avoid zipper noise
  */
 
 #include "btstack_config.h"
@@ -51,34 +54,40 @@
 #include "btstack_run_loop.h"
 
 #include <stddef.h>
-#include <stdio.h>
 #include <hardware/dma.h>
+#include <hardware/pio.h>
 
 #include "pico/audio_i2s.h"
 
+#include "gain.h"
+
+#ifndef VOLUME_RANGE_DB
+#define VOLUME_RANGE_DB 50
+#endif
+
 #define DRIVER_POLL_INTERVAL_MS   5
 #define SAMPLES_PER_BUFFER      512
+#define BUFFER_COUNT              3
 
 // client
-static void (*playback_callback)(int16_t * buffer, uint16_t num_samples);
+static void (*playback_callback)(int16_t * buffer, uint16_t num_samples, const btstack_audio_context_t * timeinfo);
 
 // timer to fill output ring buffer
 static btstack_timer_source_t  driver_timer_sink;
 
-
 static bool btstack_audio_pico_sink_active;
-
-// from pico-playground/audio/sine_wave/sine_wave.c
 
 static audio_format_t        btstack_audio_pico_audio_format;
 static audio_buffer_format_t btstack_audio_pico_producer_format;
 static audio_buffer_pool_t * btstack_audio_pico_audio_buffer_pool;
 static uint8_t               btstack_audio_pico_channel_count;
 
-static audio_buffer_pool_t *init_audio(uint32_t sample_frequency, uint8_t channel_count) {
+// gain in Q16, current approaches target within one buffer
+static int32_t btstack_audio_pico_gain_current = GAIN_UNITY;
+static int32_t btstack_audio_pico_gain_target  = GAIN_UNITY;
 
-    // num channels requested by application
-    btstack_audio_pico_channel_count = channel_count;
+
+static audio_buffer_pool_t *init_audio(uint32_t sample_frequency) {
 
     // always use stereo
     btstack_audio_pico_audio_format.format = AUDIO_BUFFER_FORMAT_PCM_S16;
@@ -88,24 +97,28 @@ static audio_buffer_pool_t *init_audio(uint32_t sample_frequency, uint8_t channe
     btstack_audio_pico_producer_format.format = &btstack_audio_pico_audio_format;
     btstack_audio_pico_producer_format.sample_stride = 2 * 2;
 
-    audio_buffer_pool_t * producer_pool = audio_new_producer_pool(&btstack_audio_pico_producer_format, 3, SAMPLES_PER_BUFFER); // todo correct size
+    audio_buffer_pool_t * producer_pool = audio_new_producer_pool(&btstack_audio_pico_producer_format, BUFFER_COUNT, SAMPLES_PER_BUFFER);
 
+    // audio_i2s_setup claims dma channel and state machine itself https://github.com/raspberrypi/pico-extras/issues/48
+    // so just look for free ones here (the cyw43 driver also uses a pio)
     audio_i2s_config_t config;
     config.data_pin       = PICO_AUDIO_I2S_DATA_PIN;
     config.clock_pin_base = PICO_AUDIO_I2S_CLOCK_PIN_BASE;  // BCK, LRCK = BCK+1
-    config.dma_channel    = (int8_t) dma_claim_unused_channel(true);
-    config.pio_sm         = 0;
-
-    // audio_i2s_setup claims the channel again https://github.com/raspberrypi/pico-extras/issues/48
+    config.dma_channel    = (uint8_t) dma_claim_unused_channel(true);
     dma_channel_unclaim(config.dma_channel);
+    PIO pio = pio_get_instance(PICO_AUDIO_I2S_PIO);
+    config.pio_sm         = (uint8_t) pio_claim_unused_sm(pio, true);
+    pio_sm_unclaim(pio, config.pio_sm);
+
     const audio_format_t * output_format = audio_i2s_setup(&btstack_audio_pico_audio_format, &config);
     if (!output_format) {
         panic("PicoAudio: Unable to open audio device.\n");
     }
 
     bool ok = audio_i2s_connect(producer_pool);
-    assert(ok);
-    (void)ok;
+    if (!ok) {
+        panic("PicoAudio: Unable to connect audio device.\n");
+    }
 
     return producer_pool;
 }
@@ -118,18 +131,21 @@ static void btstack_audio_pico_sink_fill_buffers(void){
         }
 
         int16_t * buffer16 = (int16_t *) audio_buffer->buffer->bytes;
-        (*playback_callback)(buffer16, audio_buffer->max_sample_count);
+        uint32_t num_frames = audio_buffer->max_sample_count;
+        (*playback_callback)(buffer16, (uint16_t) num_frames, NULL);
 
         // duplicate samples for mono
         if (btstack_audio_pico_channel_count == 1){
-            int16_t i;
-            for (i = SAMPLES_PER_BUFFER - 1 ; i >= 0; i--){
-                buffer16[2*i  ] = buffer16[i];
+            for (int i = (int) num_frames - 1; i >= 0; i--){
                 buffer16[2*i+1] = buffer16[i];
+                buffer16[2*i  ] = buffer16[i];
             }
         }
 
-        audio_buffer->sample_count = audio_buffer->max_sample_count;
+        btstack_audio_pico_gain_current = gain_apply(buffer16, num_frames,
+            btstack_audio_pico_gain_current, btstack_audio_pico_gain_target);
+
+        audio_buffer->sample_count = num_frames;
         give_audio_buffer(btstack_audio_pico_audio_buffer_pool, audio_buffer);
     }
 }
@@ -146,21 +162,36 @@ static void driver_timer_handler_sink(btstack_timer_source_t * ts){
 
 static int btstack_audio_pico_sink_init(
     uint8_t channels,
-    uint32_t samplerate, 
-    void (*playback)(int16_t * buffer, uint16_t num_samples)
+    uint32_t samplerate,
+    void (*playback)(int16_t * buffer, uint16_t num_samples, const btstack_audio_context_t * timeinfo)
 ){
     btstack_assert(playback != NULL);
-    btstack_assert(channels != 0);
+    btstack_assert(channels == 1 || channels == 2);
 
     playback_callback  = playback;
+    btstack_audio_pico_channel_count = channels;
 
-    btstack_audio_pico_audio_buffer_pool = init_audio(samplerate, channels);
-
+    if (!btstack_audio_pico_audio_buffer_pool) {
+        btstack_audio_pico_audio_buffer_pool = init_audio(samplerate);
+    } else {
+        // i2s driver adapts its clock to the producer format with the next buffer
+        btstack_audio_pico_audio_format.sample_freq = samplerate;
+    }
     return 0;
 }
 
+static uint32_t btstack_audio_pico_sink_get_samplerate(void) {
+    return btstack_audio_pico_audio_format.sample_freq;
+}
+
+// 0: mute, 1..127: -VOLUME_RANGE_DB..0 dB in equal dB steps
 static void btstack_audio_pico_sink_set_volume(uint8_t volume){
-    // printf("btstack_audio_pico_sink_set_volume: %d\n", volume);
+    int32_t gain = gain_from_volume(volume, VOLUME_RANGE_DB);
+
+    btstack_audio_pico_gain_target = gain;
+    if (!btstack_audio_pico_sink_active) {
+        btstack_audio_pico_gain_current = gain;  // no ramp needed while silent
+    }
 }
 
 static void btstack_audio_pico_sink_start_stream(void){
@@ -190,7 +221,7 @@ static void btstack_audio_pico_sink_stop_stream(void){
 }
 
 static void btstack_audio_pico_sink_close(void){
-    // stop stream if needed
+    // stop stream if needed, hardware stays set up for the next init
     if (btstack_audio_pico_sink_active){
         btstack_audio_pico_sink_stop_stream();
     }
@@ -198,6 +229,7 @@ static void btstack_audio_pico_sink_close(void){
 
 static const btstack_audio_sink_t btstack_audio_pico_sink = {
     .init = &btstack_audio_pico_sink_init,
+    .get_samplerate = &btstack_audio_pico_sink_get_samplerate,
     .set_volume = &btstack_audio_pico_sink_set_volume,
     .start_stream = &btstack_audio_pico_sink_start_stream,
     .stop_stream = &btstack_audio_pico_sink_stop_stream,

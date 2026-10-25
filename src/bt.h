@@ -12,4 +12,7 @@ void bt_run();
 bool bt_up();
 void bt_addr( bd_addr_t local_addr );
 
+// visible to new sources (and pairing) or only connectable for known ones
+void bt_discoverable( bool on );
+
 #endif
