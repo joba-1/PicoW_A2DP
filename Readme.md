@@ -10,6 +10,12 @@ Still uses pico-extras for i2s audio.
 
 Feel free to ask if you need help to get this running. Comments or improvements welcome :)
 
+## Feature branch
+Branch [review-sdk-2.3](https://github.com/joba-1/PicoW_A2DP/tree/review-sdk-2.3) has more on top of the same SDK support:
+reconnect and stream fixes, new volume control (dB curve, ramps, stored in flash), adaptive jitter buffer,
+delay reporting, pairing without PIN and host tests. It works on hardware, but changes like changing the volume are only tested rudimentary.
+To use it, run `git checkout review-sdk-2.3` after cloning and follow the Readme there.
+
 ## Programming
 * Clone Pico-SDK, Pico-Extras and PicoW_A2DP from Github, build and flash
 * needs Pico-SDK >= 2.3.0 (bundles BTstack 1.8, which changed the audio interface), builds with 2.3.1
