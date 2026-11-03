@@ -43,7 +43,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
     # RUN_PIN=22
     CONN_PIN=26
     BT_PIN="0000"
-    BT_NAME="Pico2W-2.1.0"
+    BT_NAME="Pico2W-2.3.1"
 )
 
 target_link_libraries(${PROJECT_NAME}
