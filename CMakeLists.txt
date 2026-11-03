@@ -54,12 +54,11 @@ option(PRINT_STATS "Print audio buffer statistics every 10s while streaming" OFF
 
 add_executable(${PROJECT_NAME})
 
-# names follow the board: pico_w -> picow-a2dp.uf2, PicoW-2.3.1, pico2_w -> pico2w-a2dp.uf2, Pico2W-2.3.1
+# names follow the board: pico_w -> picow-a2dp.uf2, pico2_w -> pico2w-a2dp.uf2
 string(REPLACE "_" "" BOARD_ID "${PICO_BOARD}")
 set(FIRMWARE_NAME "${BOARD_ID}-a2dp")
 set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "${FIRMWARE_NAME}")
 pico_set_program_name(${PROJECT_NAME} "${FIRMWARE_NAME}")
-string(REGEX REPLACE "^pico(2?)_w$" "Pico\\1W" BOARD_LABEL "${PICO_BOARD}")
 
 target_sources(${PROJECT_NAME} PRIVATE
     src/main.c
@@ -72,6 +71,7 @@ target_sources(${PROJECT_NAME} PRIVATE
 )
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE
+    FIRMWARE_NAME="${FIRMWARE_NAME}"
     VERSION="${PROJECT_VERSION}"
     BT_NAME="${BT_NAME}"
     BT_PIN="${BT_PIN}"

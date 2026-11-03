@@ -92,7 +92,7 @@ void on_connection( bool connected, uint8_t *addr ) {
 
 int main() {
     stdio_init_all();
-    printf("PicoW A2DP " VERSION "\n");
+    printf(FIRMWARE_NAME " " VERSION "\n");
 
     #if CONN_PIN >= 0
         // high while a source is connected
