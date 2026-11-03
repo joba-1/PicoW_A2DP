@@ -10,6 +10,10 @@ Still uses pico-extras for i2s audio.
 
 Feel free to ask if you need help to get this running. Comments or improvements welcome :)
 
+## Status
+This branch works on hardware, but changes like changing the volume are only tested rudimentary.
+For just the Pico-SDK 2.3 port without the changes of this branch see `main`, tag `sdk-2.3`.
+
 ## Features
 * SBC in every configuration a source may choose: 16/32/44.1/48 kHz, mono, dual channel, stereo, joint stereo, bitpool 2-53
 * Volume controlled by the source (AVRCP absolute volume) with a dB curve, smooth ramps and stored in flash
@@ -36,7 +40,7 @@ cd ..
 export PICO_SDK_PATH="$base"/pico-sdk
 git clone https://github.com/raspberrypi/pico-extras.git --branch sdk-2.3.1
 export PICO_EXTRAS_PATH="$base"/pico-extras/
-git clone https://github.com/joba-1/PicoW_A2DP.git
+git clone https://github.com/joba-1/PicoW_A2DP.git --branch review-sdk-2.3
 cd PicoW_A2DP/
 mkdir build && cd build
 
