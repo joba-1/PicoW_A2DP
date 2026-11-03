@@ -41,7 +41,7 @@ cmake -DPICO_BOARD=pico2_w -DCMAKE_BUILD_TYPE=Debug ..
 
 make -j
 # boot pico into flash mode before this: 
-cp picow-a2dp.uf2 /run/media/$USER/RP2??0/
+cp pico2w-a2dp.uf2 /run/media/$USER/RP2??0/   # picow-a2dp.uf2 for pico_w
 ```
 * For optional flashing/debugging with a picoprobe connect Pico-W power-, debug- and optionally uart-pins and clone OpenOCD Pico Branch from raspberrypi github
 

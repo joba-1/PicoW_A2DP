@@ -28,6 +28,13 @@ set(CMAKE_CXX_STANDARD 17)
 
 add_executable(${PROJECT_NAME})
 
+# names follow the board: pico_w -> picow-a2dp.uf2, PicoW-2.3.1, pico2_w -> pico2w-a2dp.uf2, Pico2W-2.3.1
+string(REPLACE "_" "" BOARD_ID "${PICO_BOARD}")
+set(FIRMWARE_NAME "${BOARD_ID}-a2dp")
+set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "${FIRMWARE_NAME}")
+pico_set_program_name(${PROJECT_NAME} "${FIRMWARE_NAME}")
+string(REGEX REPLACE "^pico(2?)_w$" "Pico\\1W" BOARD_LABEL "${PICO_BOARD}")
+
 target_sources(${PROJECT_NAME} PRIVATE
     src/btstack_audio_pico_i2s.c
     src/main.c
@@ -43,7 +50,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
     # RUN_PIN=22
     CONN_PIN=26
     BT_PIN="0000"
-    BT_NAME="Pico2W-2.3.1"
+    BT_NAME="${BOARD_LABEL}-${PICO_SDK_VERSION_STRING}"
 )
 
 target_link_libraries(${PROJECT_NAME}
