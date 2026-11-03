@@ -12,17 +12,19 @@ Feel free to ask if you need help to get this running. Comments or improvements 
 
 ## Programming
 * Clone Pico-SDK, Pico-Extras and PicoW_A2DP from Github, build and flash
-* tested >= 1.5.0 for Pico W, >= 2.1.0 for Pico2 W
+* needs Pico-SDK >= 2.3.0 (bundles BTstack 1.8, which changed the audio interface), builds with 2.3.1
+* this version has not been used on hardware yet
+* for older Pico-SDKs (tested >= 1.5.0 for Pico W, >= 2.1.0 for Pico2 W) use tag `sdk-2.1`: run `git checkout sdk-2.1` after cloning and follow the Readme there
 ```
-base=~/pico-2.1.0
+base=~/pico-2.3.1
 mkdir "$base"
 cd "$base"
-git clone git@github.com:raspberrypi/pico-sdk.git --branch 2.1.0
+git clone git@github.com:raspberrypi/pico-sdk.git --branch 2.3.1
 cd pico-sdk
 git submodule update --init
 cd ..
 export PICO_SDK_PATH="$base"/pico-sdk
-git clone git@github.com:raspberrypi/pico-extras.git --branch sdk-2.1.0
+git clone git@github.com:raspberrypi/pico-extras.git --branch sdk-2.3.1
 export PICO_EXTRAS_PATH="$base"/pico-extras/
 git clone https://github.com/joba-1/PicoW_A2DP.git
 cd PicoW_A2DP/

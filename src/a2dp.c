@@ -115,7 +115,8 @@ static void handle_pcm_data(int16_t * data, int num_audio_frames, int num_channe
 
 
 /// provide pcm frames to i2s sink
-static void playback_handler(int16_t * buffer, uint16_t num_audio_frames) {
+static void playback_handler(int16_t * buffer, uint16_t num_audio_frames, const btstack_audio_context_t * context) {
+    UNUSED(context);
 
     // called from lower-layer but guaranteed to be on main thread
     if (_sbc_frame_size == 0){

@@ -17,6 +17,11 @@ include(pico_extras_import.cmake)
 
 pico_sdk_init()
 
+# btstack 1.8 (bundled since pico-sdk 2.3.0) changed the btstack_audio interface
+if (PICO_SDK_VERSION_STRING VERSION_LESS "2.3.0")
+    message(FATAL_ERROR "pico-sdk ${PICO_SDK_VERSION_STRING} is too old, need >= 2.3.0")
+endif ()
+
 project(picow-a2dp CXX C ASM)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
@@ -24,7 +29,6 @@ set(CMAKE_CXX_STANDARD 17)
 add_executable(${PROJECT_NAME})
 
 target_sources(${PROJECT_NAME} PRIVATE
-    ${PICO_SDK_PATH}/lib/btstack/src/btstack_audio.c
     src/btstack_audio_pico_i2s.c
     src/main.c
     src/bt.c
